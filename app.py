@@ -28,21 +28,31 @@ def send_email():
     data = request.get_json()
     form_type = data.get('formType') # e.g., 'contactUs', 'aboutUsContact', 'becomeMember'
     name = data.get('name')
+    surname = data.get('surname') # New field
     email = data.get('email')
+    phone = data.get('phone') # New field
     message = data.get('message')
+    kvkk = data.get('kvkk') # New field (boolean)
     subject = data.get('subject', 'New Form Submission') # Default subject
 
-    # Basic validation
-    if not all([form_type, name, email, message]):
-        return jsonify({"message": "Missing required fields (formType, name, email, message)"}), 400
+    # Basic validation - adjust as per your required fields
+    if not all([form_type, name, surname, email, message, kvkk is not None]):
+        return jsonify({"message": "Missing required fields (formType, name, surname, email, message, kvkk)"}), 400
+    
+    # Ensure KVKK is true
+    if not kvkk:
+        return jsonify({"message": "KVKK approval is required"}), 400
 
     # Customize subject based on form type
     if form_type == 'contactUs':
-        subject = f"New Contact Us Message from {name}"
-    elif form_type == 'aboutUsContact':
-        subject = f"New About Us Contact Message from {name}"
-    elif form_type == 'becomeMember':
-        subject = f"New Member Application from {name}"
+        subject = f"New Contact Us Message from {name} {surname}"
+    elif form_type == 'aboutUsContact': # Assuming a contact form in about us
+        subject = f"New About Us Contact Message from {name} {surname}"
+    elif form_type == 'becomeMember': # Assuming a 'become a member' form
+        subject = f"New Member Application from {name} {surname}"
+    else:
+        subject = f"New General Form Submission from {name} {surname}"
+
 
     try:
         msg = MIMEMultipart()
@@ -50,15 +60,19 @@ def send_email():
         msg['To'] = RECEIVER_EMAIL
         msg['Subject'] = subject
 
+        # Enhanced body for all fields
         body = f"""
         <html>
         <body>
             <h3>Form Submission Details:</h3>
             <p><strong>Form Type:</strong> {form_type}</p>
             <p><strong>Name:</strong> {name}</p>
+            <p><strong>Surname:</strong> {surname}</p>
             <p><strong>Email:</strong> {email}</p>
+            <p><strong>Phone:</strong> {phone if phone else 'N/A'}</p>
             <p><strong>Message:</strong></p>
             <p>{message}</p>
+            <p><strong>KVKK Approved:</strong> {'Yes' if kvkk else 'No'}</p>
         </body>
         </html>
         """
@@ -69,7 +83,7 @@ def send_email():
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.send_message(msg)
 
-        print(f"Email sent successfully from {form_type} form.") # For server logs
+        print(f"Email sent successfully for {form_type} form from {name} {surname}.") # For server logs
         return jsonify({"message": "Email sent successfully!"}), 200
 
     except Exception as e:
